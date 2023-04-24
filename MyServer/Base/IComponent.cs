@@ -29,6 +29,7 @@ namespace MyServer.Base
 
             IComponent component = Activator.CreateInstance(type) as IComponent;
             component.Parent = this;
+            component.Init();
             this.components.Add(type, component);
             return component;
         }
@@ -48,6 +49,7 @@ namespace MyServer.Base
 
             IComponent component = Activator.CreateInstance(type) as IComponent;
             component.Parent = this;
+            component.Init();
             this.components.Add(type, component);
             return component as K;
         }
@@ -66,5 +68,7 @@ namespace MyServer.Base
                 return default;
             return (K)component;
         }
+
+        protected virtual void Init() { }
     }
 }

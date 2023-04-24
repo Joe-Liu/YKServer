@@ -12,6 +12,8 @@ using Lidgren.Network;
 using MyServer.MyThread;
 using MyServer.Server.Session;
 using MyServer.Server;
+using System.Text;
+using System.Net;
 
 namespace MyServer
 {
@@ -26,6 +28,20 @@ namespace MyServer
     class Program
     {
         public static Logger logger = LogManager.GetCurrentClassLogger();
+
+        static void Main(string[] args)
+        {
+            var httpServer = HttpServer.Create("http", 8081);
+            httpServer.Start();
+
+            Console.WriteLine("任意键退出应用");
+            Console.ReadLine();
+
+            httpServer.ShutDown();
+
+            Console.WriteLine("退出应用成功！");
+        }
+
 
         static void Load()
         {
@@ -54,25 +70,25 @@ namespace MyServer
         /// Exit的时候执行关闭服务的操作
         /// </summary>
         /// <param name="args"></param>
-        static void Main(string[] args)
-        {
-            Load();
-            Start();
+        //static void Main(string[] args)
+        //{
+        //    Load();
+        //    Start();
 
-            var GameServer = SocketServer.Create("game", 1234);
-            GameServer.Start();
+        //    var GameServer = SocketServer.Create("game", 1234);
+        //    GameServer.Start();
 
-            Console.WriteLine("任意键关闭服务");
-            Console.ReadLine();
+        //    Console.WriteLine("任意键关闭服务");
+        //    Console.ReadLine();
 
-            GameServer.ShutDown();
-            Exit();
+        //    GameServer.ShutDown();
+        //    Exit();
 
-            Console.WriteLine("任意键退出应用");
-            Console.ReadLine();
+        //    Console.WriteLine("任意键退出应用");
+        //    Console.ReadLine();
 
-            Console.WriteLine("退出应用成功！");
+        //    Console.WriteLine("退出应用成功！");
 
-        }
+        //}
     }
 }
