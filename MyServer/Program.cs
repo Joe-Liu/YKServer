@@ -8,6 +8,10 @@ using System.Threading.Tasks;
 using System.Collections.Generic;
 using MyServer.Database;
 using MyServer.Timer;
+using Lidgren.Network;
+using MyServer.MyThread;
+using MyServer.Server.Session;
+using MyServer.Server;
 
 namespace MyServer
 {
@@ -23,23 +27,25 @@ namespace MyServer
     {
         public static Logger logger = LogManager.GetCurrentClassLogger();
 
-
         static void Load()
         {
             DBManager.instance.Load();
-            ScheduleManager.instance.Load();
+            //ScheduleManager.instance.Load();
+            SessionManager.instance.Load();
         }
 
         static void Start()
         {
             DBManager.instance.Start();
-            ScheduleManager.instance.Start();
+            //ScheduleManager.instance.Start();
+            SessionManager.instance.Start();
         }
 
         static void Exit()
         {
             DBManager.instance.Exit();
-            ScheduleManager.instance.Exit();
+            //ScheduleManager.instance.Exit();
+            SessionManager.instance.Exit();
         }
 
         /// <summary>
@@ -50,20 +56,23 @@ namespace MyServer
         /// <param name="args"></param>
         static void Main(string[] args)
         {
-            var thread = new Thread(()=> {
-                while (true)
-                {
-                    Thread.Sleep(10000);
-                    logger.Warn("Do Thread***" + Thread.CurrentThread.ManagedThreadId);
-                }
-            });
-            thread.Start();
-
             Load();
             Start();
 
-            Console.WriteLine(".");
+            var GameServer = SocketServer.Create("game", 1234);
+            GameServer.Start();
+
+            Console.WriteLine("任意键关闭服务");
             Console.ReadLine();
+
+            GameServer.ShutDown();
+            Exit();
+
+            Console.WriteLine("任意键退出应用");
+            Console.ReadLine();
+
+            Console.WriteLine("退出应用成功！");
+
         }
     }
 }
