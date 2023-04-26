@@ -1,19 +1,7 @@
 ﻿using NLog;
-using System;
-using System.Transactions;
-using System.Threading;
-using Quartz;
-using Quartz.Impl;
-using System.Threading.Tasks;
-using System.Collections.Generic;
 using MyServer.Database;
-using MyServer.Timer;
-using Lidgren.Network;
-using MyServer.MyThread;
 using MyServer.Server.Session;
 using MyServer.Server;
-using System.Text;
-using System.Net;
 
 namespace MyServer
 {
@@ -29,11 +17,10 @@ namespace MyServer
     {
         public static NLog.Logger logger = LogManager.GetCurrentClassLogger();
 
+
         static void Main(string[] args)
         {
-
-            Console.WriteLine("...");
-            Console.ReadLine();
+            var WebSockServer = new WebSockServer(9527);
         }
 
 
