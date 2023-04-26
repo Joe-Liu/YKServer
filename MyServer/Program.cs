@@ -27,19 +27,13 @@ namespace MyServer
     /// </summary>
     class Program
     {
-        public static Logger logger = LogManager.GetCurrentClassLogger();
+        public static NLog.Logger logger = LogManager.GetCurrentClassLogger();
 
         static void Main(string[] args)
         {
-            var httpServer = HttpServer.Create("http", 8081);
-            httpServer.Start();
 
-            Console.WriteLine("任意键退出应用");
+            Console.WriteLine("...");
             Console.ReadLine();
-
-            httpServer.ShutDown();
-
-            Console.WriteLine("退出应用成功！");
         }
 
 
@@ -77,11 +71,17 @@ namespace MyServer
 
         //    var GameServer = SocketServer.Create("game", 1234);
         //    GameServer.Start();
+        //    var server = TCPSocketServer.Create("game", 1234);
+        //    server.Start();
+        //    var httpServer = HttpServer.Create("http", 8081);
+        //    httpServer.Start();
 
         //    Console.WriteLine("任意键关闭服务");
         //    Console.ReadLine();
 
         //    GameServer.ShutDown();
+        //    server.ShutDown();
+        //    httpServer.ShutDown();
         //    Exit();
 
         //    Console.WriteLine("任意键退出应用");

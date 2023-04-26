@@ -11,6 +11,10 @@ using System.Threading.Tasks;
 
 namespace MyServer.Server
 {
+    /// <summary>
+    /// 单线程HttpServer
+    /// 可以改为多线程，暂时就这样够用了
+    /// </summary>
     public class HttpServer : IComponent
     {
         public static Logger logger = LogManager.GetCurrentClassLogger();

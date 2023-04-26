@@ -1,4 +1,5 @@
 ﻿using Lidgren.Network;
+using MyServer.Server.TcpSocket;
 using MyServer.Utils;
 using NLog;
 using System;
@@ -13,18 +14,40 @@ namespace MyServer.Server.Session
     {
         private static Logger logger = LogManager.GetCurrentClassLogger();
 
-        private static Dictionary<int, NetConnection> connectionDic = new Dictionary<int, NetConnection>();
-        private static Dictionary<int, MySession> sessionDic = new Dictionary<int, MySession>();
-        private static Dictionary<long, MySession> playerSessionDic = new Dictionary<long, MySession>();
+        private static Dictionary<int, ISession> sessionDic = new Dictionary<int, ISession>();
+        private static Dictionary<long, ISession> playerSessionDic = new Dictionary<long, ISession>();
 
         private object sessionLock = new object();
         private object playerLock = new object();
 
         public override void Init()
         {
-            connectionDic.Clear();
             sessionDic.Clear();
             playerSessionDic.Clear();
+        }
+
+        /// <summary>
+        /// 创建NetSession
+        /// </summary>
+        /// <param name="netConnection"></param>
+        /// <param name="netServer"></param>
+        /// <returns></returns>
+        public static NetSession Create(NetConnection netConnection, NetServer netServer)
+        {
+            var session = new NetSession(netConnection, netServer);
+            return session;
+        }
+
+        /// <summary>
+        /// 创建MySession
+        /// </summary>
+        /// <param name="channel"></param>
+        /// <param name="tcpServer"></param>
+        /// <returns></returns>
+        public static MySession Create(MyChannel channel, TcpServer tcpServer)
+        {
+            var session = new MySession(channel, tcpServer);
+            return session;
         }
 
         /// <summary>
@@ -37,13 +60,12 @@ namespace MyServer.Server.Session
             lock (sessionLock)
             {
                 int HashCode = netConnection.GetHashCode();
-                if (connectionDic.ContainsKey(HashCode))
+                if (sessionDic.ContainsKey(HashCode))
                 {
-                    logger.Error($"Already Has This NetConnection {HashCode}");
+                    logger.Error($"Already Has This Session {HashCode}");
                     return;
                 }
-                connectionDic.Add(HashCode, netConnection);
-                var session = MySession.Create(netConnection, netServer);
+                var session = Create(netConnection, netServer);
                 sessionDic.Add(HashCode, session);
             }
         }
@@ -60,14 +82,62 @@ namespace MyServer.Server.Session
             lock (sessionLock)
             {
                 int HashCode = netConnection.GetHashCode();
-                if (!connectionDic.ContainsKey(HashCode))
+                if (!sessionDic.ContainsKey(HashCode))
                 {
-                    logger.Error($"Don't Have This NetConnection {HashCode}");
+                    logger.Error($"Don't Have This Session {HashCode}");
                     return;
                 }
-                connectionDic.Remove(HashCode);
-                if (sessionDic[HashCode] != null)
-                    playerId = sessionDic[HashCode].playerId;
+                playerId = sessionDic[HashCode].playerId;
+                sessionDic.Remove(HashCode);
+            }
+
+            if (playerId > 0)
+            {
+                lock (playerLock)
+                {
+                    playerSessionDic.Remove(playerId);
+                }
+            }
+        }
+
+        /// <summary>
+        /// 添加一个网络连接，自动创建对应的Session
+        /// 多线程操作
+        /// </summary>
+        /// <param name="channel">MyChannel</param>
+        public void AddConnect(MyChannel channel, TcpServer tcpServer)
+        {
+            lock (sessionLock)
+            {
+                int HashCode = channel.GetHashCode();
+                if (sessionDic.ContainsKey(HashCode))
+                {
+                    logger.Error($"Already Has This Session {HashCode}");
+                    return;
+                }
+                var session = Create(channel, tcpServer);
+                sessionDic.Add(HashCode, session);
+            }
+        }
+
+        /// <summary>
+        /// 移除一个网络连接，删除对应的Session
+        /// 如果Session上绑定有用户的话，移除用户相关的数据（移除方式？）
+        /// 多线程操作
+        /// </summary>
+        /// <param name="channel"></param>
+        public void RemoveConnect(MyChannel channel)
+        {
+            long playerId = -1L;
+            lock (sessionLock)
+            {
+                int HashCode = channel.GetHashCode();
+                if (!sessionDic.ContainsKey(HashCode))
+                {
+                    logger.Error($"Don't Have This Session {HashCode}");
+                    return;
+                }
+                playerId = sessionDic[HashCode].playerId;
                 sessionDic.Remove(HashCode);
             }
 
@@ -85,7 +155,7 @@ namespace MyServer.Server.Session
         /// </summary>
         /// <param name="connectionHash"></param>
         /// <returns></returns>
-        public MySession GetSession(int connectionHash)
+        public ISession GetSession(int connectionHash)
         {
             if (sessionDic.ContainsKey(connectionHash))
                 return sessionDic[connectionHash];
@@ -97,7 +167,7 @@ namespace MyServer.Server.Session
         /// </summary>
         /// <param name="playerId"></param>
         /// <returns></returns>
-        public MySession GetSession(long playerId)
+        public ISession GetSession(long playerId)
         {
             if(playerSessionDic.ContainsKey(playerId))
                 return playerSessionDic[playerId];

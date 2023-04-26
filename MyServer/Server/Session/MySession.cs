@@ -1,4 +1,4 @@
-﻿using Lidgren.Network;
+﻿using MyServer.Server.TcpSocket;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -7,38 +7,25 @@ using System.Threading.Tasks;
 
 namespace MyServer.Server.Session
 {
-    public class MySession
+    public class MySession : ISession
     {
-        public NetConnection netConnection { get; protected set; }
-        public NetServer netServer { get; protected set; }
-        public long playerId { get; protected set; }
+        public MyChannel channel { get; protected set; }
+        public TcpServer tcpServer { get; protected set; }
 
-        public static MySession Create(NetConnection netConnection, NetServer netServer)
+        public MySession(MyChannel channel, TcpServer tcpServer)
         {
-            var session = new MySession();
-            session.netConnection = netConnection;
-            session.netServer = netServer;
-            session.playerId = -1L;
-            return session;
-        }
-
-        /// <summary>
-        /// 绑定playerId
-        /// </summary>
-        /// <param name="playerId"></param>
-        public void BindPlayerId(long playerId)
-        {
-            this.playerId = playerId;
+            this.channel = channel;
+            this.tcpServer = tcpServer;
+            this.playerId = -1L;
         }
 
         /// <summary>
         /// 发送文本消息内容
         /// </summary>
         /// <param name="outMsg"></param>
-        public void SendMessage(string outMsg)
+        public override void SendMessage(string outMsg)
         {
-            NetOutgoingMessage msg = netServer.CreateMessage(outMsg);
-            netServer.SendMessage(msg, netConnection, NetDeliveryMethod.ReliableOrdered, 0);
+
         }
     }
 }

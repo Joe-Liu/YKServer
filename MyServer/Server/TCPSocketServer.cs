@@ -1,23 +1,21 @@
-﻿using Lidgren.Network;
-using MyServer.Base;
+﻿using MyServer.Base;
 using MyServer.MyThread;
 using MyServer.Server.Component;
 using MyServer.Server.EncoderDecoder;
 using MyServer.Server.Session;
 using NLog;
 using System.Threading;
+using MyServer.Server.TcpSocket;
 
 namespace MyServer.Server
 {
     /// <summary>
-    /// SocketServer
-    /// 使用Lidgren.Network构建的Socket服务，如果客户端不使用Lidgren.Network的话非常不方便
-    /// 未来可能需要实现一个新的TCP SocketServer
+    /// TCP SocketServer
     /// </summary>
-    public class SocketServer : IComponent
+    public class TCPSocketServer : IComponent
     {
         public static Logger logger = LogManager.GetCurrentClassLogger();
-        public NetServer InServer { get; protected set; }
+        public TcpServer InServer { get; protected set; }
         public int WorkerSize { get; protected set; }
         public bool IsBackground { get; protected set; }
         public MyThreadPool ThreadPool { get; protected set; }
@@ -35,9 +33,9 @@ namespace MyServer.Server
         /// <param name="MaxConnections">最大连接数,超过就会拒绝，默认1w</param>
         /// <param name="workerSize">收到消息后的处理线程数</param>
         /// <returns>SocketServer</returns>
-        public static SocketServer Create(string name, int port, int MaxConnections = 10000, int workerSize = 10, bool isBackground = true)
+        public static TCPSocketServer Create(string name, int port, int MaxConnections = 10000, int workerSize = 10, bool isBackground = true)
         {
-            SocketServer socketServer = new SocketServer();
+            TCPSocketServer socketServer = new TCPSocketServer();
             socketServer.Init(name, port, MaxConnections, workerSize, isBackground);
             return socketServer;
         }
@@ -68,33 +66,29 @@ namespace MyServer.Server
         {
             WorkerSize = workerSize;
             IsBackground = isBackground;
-            NetPeerConfiguration config = new NetPeerConfiguration(name);
-            config.Port = port;
-            config.MaximumConnections = MaxConnections;
-            config.UseMessageRecycling = true;
-            InServer = new NetServer(config);
+            InServer = new TcpServer(name, port, MaxConnections);
             ThreadPool = new MyThreadPool(workerSize, OnMessageReceived);
 
             sessionComponent = AddComponent<SessionComponent>();
             messageDispatchComponent = AddComponent<MessageDispatchComponent>();
             protoDataEncoderDecoder = AddComponent<ProtoDataEncoderDecoder>();
 
-            sessionComponent.netServer = InServer;
+            sessionComponent.tcpServer = InServer;
         }
 
         protected void ServerStart()
         {
             InServer.Start();
-            string AppIdentifier = InServer.Configuration.AppIdentifier;
-            logger.Debug($"{AppIdentifier} Server Has Started! Port:{InServer.Configuration.Port} , IsBackground:{IsBackground}");
+            string AppIdentifier = InServer.name;
+            logger.Debug($"{AppIdentifier} Server Has Started! Port:{InServer.port} , IsBackground:{IsBackground}");
 
             while (true)
             {
                 InServer.MessageReceivedEvent.WaitOne();
-                NetIncomingMessage msg;
+                MyNetInMessage msg;
                 while ((msg = InServer.ReadMessage()) != null)
                 {
-                    var idx = msg.SenderConnection.GetHashCode() % WorkerSize;
+                    var idx = msg.channel.GetHashCode() % WorkerSize;
                     ThreadPool.Enqueue(idx, msg);
                 }
                 if (IsShutdown)
@@ -105,39 +99,20 @@ namespace MyServer.Server
 
         protected void OnMessageReceived(object state)
         {
-            NetIncomingMessage msg = (NetIncomingMessage)state;
+            MyNetInMessage msg = (MyNetInMessage)state;
             switch (msg.MessageType)
             {
-                case NetIncomingMessageType.Error:
+                case MyNetInMessageType.Error:
                     logger.Warn($"Server Error:{msg.ReadString()}");
                     break;
-                case NetIncomingMessageType.ConnectionApproval:
-                    logger.Warn($"Server ConnectionApproval:{msg.ReadString()}");
+                case MyNetInMessageType.StatusChanged:
+                    MyTcpConnectionStatus status = (MyTcpConnectionStatus)msg.ReadByte();
+                    sessionComponent.HandleNetConnectionStatus(msg.channel, status);
                     break;
-                case NetIncomingMessageType.StatusChanged:
-                    NetConnectionStatus status = (NetConnectionStatus)msg.ReadByte();
-                    sessionComponent.HandleNetConnectionStatus(msg.SenderConnection, status);
-                    break;
-                case NetIncomingMessageType.UnconnectedData:
-                    logger.Warn($"Server UnconnectedData:{msg.ReadString()}");
-                    break;
-                case NetIncomingMessageType.Receipt:
-                    logger.Warn($"Server Receipt:{msg.ReadString()}");
-                    break;
-                case NetIncomingMessageType.Data:
+                case MyNetInMessageType.Data:
                     string data = protoDataEncoderDecoder.Decode(msg);
-                    var session = SessionManager.instance.GetSession(msg.SenderConnection.GetHashCode());
+                    ISession session = SessionManager.instance.GetSession(msg.channel.GetHashCode());
                     messageDispatchComponent.Dispatch(data, session);
-                    break;
-                case NetIncomingMessageType.DiscoveryRequest:
-                case NetIncomingMessageType.DiscoveryResponse:
-                    logger.Warn($"Server Discovery message type: {msg.MessageType}  message:{msg.ReadString()}");
-                    break;
-                case NetIncomingMessageType.VerboseDebugMessage:
-                case NetIncomingMessageType.DebugMessage:
-                case NetIncomingMessageType.WarningMessage:
-                case NetIncomingMessageType.ErrorMessage:
-                    logger.Warn($"Server Error message type: {msg.MessageType}  message:{msg.ReadString()}");
                     break;
                 default:
                     logger.Warn("Server Unhandled message type: " + msg.MessageType);

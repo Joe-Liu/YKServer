@@ -11,10 +11,10 @@ namespace MyServer.Server.Component
 {
     public class MessageDispatchComponent : IComponent
     {
-        public void Dispatch(string inMsg, MySession session)
+        public void Dispatch(string inMsg, ISession session)
         {
-            session.SendMessage($"{session.netConnection.GetHashCode()} Server Received m11essage: {inMsg} Thread:{Thread.CurrentThread.ManagedThreadId}");
-            session.SendMessage($"{session.netConnection.GetHashCode()} Server Received m22essage: {inMsg} Thread:{Thread.CurrentThread.ManagedThreadId}");
+            session.SendMessage($"{session.GetHashCode()} Server Received m11essage: {inMsg} Thread:{Thread.CurrentThread.ManagedThreadId}");
+            session.SendMessage($"{session.GetHashCode()} Server Received m22essage: {inMsg} Thread:{Thread.CurrentThread.ManagedThreadId}");
         }
     }
 }
